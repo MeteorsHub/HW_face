@@ -2,6 +2,16 @@
 
 This project is based on mtcnn and facenet.
 
+## Requirements
+
+Tensorflow>=1.7
+
+Python2.7 or 3.5
+
+Other python packages you can install when running.
+
+## Pre-process
+
 set PYTHONPATH environment to this root directory like this on linux:
 ```bash
 export PYTHONPATH=path/to/this/root/directory
@@ -17,7 +27,7 @@ Change the data structure by running
 python dataset/HW_1_Face/raw/sort.py
 ```
 
-## face detection
+## Face detection
 
 Using mtcnn to align face bounding box. Run train set:
 
@@ -43,11 +53,11 @@ dataset/HW_1_Face/mtcnn_160/test \
 
 to get face detection of the data
 
-## face recognition
+## Face recognition
 
 This will use pretrained checkpoint in `saved_models/vgg_face2` trained on vgg_face2
 
-Download from [https://cloud.tsinghua.edu.cn/d/991128b4d19e43bf99fc/]()
+Download from [https://cloud.tsinghua.edu.cn/d/991128b4d19e43bf99fc/](https://cloud.tsinghua.edu.cn/d/991128b4d19e43bf99fc/)
 
 > in progress
 
