@@ -58,8 +58,8 @@ def main(args):
                 c_paths = copy.copy(paths)
                 del c_paths[i]
 
-                b_paths = [paths[i] for _ in range(args.batch_size)]
-                first_images = facenet.load_data(b_paths, False, False, args.image_size)
+                b_paths = [paths[i]]
+                first_image = facenet.load_data(b_paths, False, False, args.image_size)
 
                 for j in range(10):
                     # for j in range(n_batches_per_compare):
@@ -68,6 +68,7 @@ def main(args):
                     paths_batch = c_paths[start_index:end_index]
                     second_images = facenet.load_data(paths_batch, False, False, args.image_size)
 
+                    first_images = np.tile(first_image, (len(second_images), 1, 1, 1))
                     images = np.concatenate((first_images, second_images), 0)
 
                     feed_dict = {images_placeholder: images, phase_train_placeholder: True}
