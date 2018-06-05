@@ -24,10 +24,12 @@ def main(args):
             for cls in test_dataset:
                 assert (len(cls.image_paths) > 0, 'There must be at least one image for each class in the dataset')
 
-            paths, labels = facenet.get_image_paths_and_labels(train_dataset)
+            train_paths, train_labels = facenet.get_image_paths_and_labels(train_dataset)
+            test_paths, test_labels = facenet.get_image_paths_and_labels(test_dataset)
 
             print('Number of classes: %d' % len(train_dataset))
-            print('Number of images: %d' % len(paths))
+            print('Number of train images: %d' % len(train_paths))
+            print('Number of test images: %d' % len(test_paths))
 
             # Load the model
             print('Loading feature extraction model')
@@ -40,17 +42,45 @@ def main(args):
             embedding_size = embeddings.get_shape()[1]
 
             # Run forward pass to calculate embeddings
-            print('Calculating features for images')
-            nrof_images = len(paths)
+            print('Calculating features for train images')
+            nrof_images = len(train_paths)
             nrof_batches_per_epoch = int(math.ceil(1.0 * nrof_images / args.batch_size))
             emb_array = np.zeros((nrof_images, embedding_size))
             for i in range(nrof_batches_per_epoch):
                 start_index = i * args.batch_size
                 end_index = min((i + 1) * args.batch_size, nrof_images)
-                paths_batch = paths[start_index:end_index]
+                paths_batch = train_paths[start_index:end_index]
                 images = facenet.load_data(paths_batch, False, False, args.image_size)
                 feed_dict = {images_placeholder: images, phase_train_placeholder: False}
                 emb_array[start_index:end_index, :] = sess.run(embeddings, feed_dict=feed_dict)
+            train_emb_array = np.copy(emb_array)
+
+            print('Calculating features for test images')
+            nrof_images = len(test_paths)
+            nrof_batches_per_epoch = int(math.ceil(1.0 * nrof_images / args.batch_size))
+            emb_array = np.zeros((nrof_images, embedding_size))
+            for i in range(nrof_batches_per_epoch):
+                start_index = i * args.batch_size
+                end_index = min((i + 1) * args.batch_size, nrof_images)
+                paths_batch = test_paths[start_index:end_index]
+                images = facenet.load_data(paths_batch, False, False, args.image_size)
+                feed_dict = {images_placeholder: images, phase_train_placeholder: False}
+                emb_array[start_index:end_index, :] = sess.run(embeddings, feed_dict=feed_dict)
+            test_emb_array = emb_array
+
+            print('Calculating cos distance')
+            class_names = [cls.name.replace('_', ' ') for cls in train_dataset]
+            dist_dict = np.ones((len(test_emb_array), len(train_emb_array)), np.float32) * np.inf
+            for i in range(len(test_emb_array)):
+                for j in range(len(train_emb_array)):
+                    dist_dict[i, j] = facenet.distance(test_emb_array[i:i + 1], train_emb_array[j:j + 1], 1)[0]
+
+            predictions = dist_dict.argmin(axis=1)
+            for i in range(len(predictions)):
+                print('%4d  %s, distance: %.6f' % (
+                i, class_names[train_labels[predictions[i]]], dist_dict[i, predictions[i]]))
+            accuracy = np.mean(np.equal(train_labels[predictions[i]], test_labels))
+            print('Accuracy: %.6f' % accuracy)
 
 
 def parse_arguments(argv):
