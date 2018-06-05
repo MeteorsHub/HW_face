@@ -89,7 +89,8 @@ def main(args):
                         print(errorMessage)
                     else:
                         if img.ndim < 2:
-                            print('Unable to align "%s"' % image_path)
+                            print('Unable to align "%s"' % image_path + ", original saved.")
+                            misc.imsave(output_filename, img)
                             text_file.write('%s\n' % (output_filename))
                             continue
                         if img.ndim == 2:
@@ -137,7 +138,8 @@ def main(args):
                                 misc.imsave(output_filename_n, scaled)
                                 text_file.write('%s %d %d %d %d\n' % (output_filename_n, bb[0], bb[1], bb[2], bb[3]))
                         else:
-                            print('Unable to align "%s"' % image_path)
+                            print('Unable to align "%s"' % image_path + ", original saved.")
+                            misc.imsave(output_filename, img)
                             text_file.write('%s\n' % (output_filename))
 
     print('Total number of images: %d' % nrof_images_total)
