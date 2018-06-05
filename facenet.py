@@ -410,6 +410,12 @@ def load_model(model, input_map=None):
         saver.restore(tf.get_default_session(), os.path.join(model_exp, ckpt_file))
 
 
+def save_model(model_path):
+    saver = tf.train.Saver()
+    save_path = saver.save(tf.get_default_session(), os.path.join(model_path, 'model.ckpt'))
+    print('model saved in %s' % save_path)
+
+
 def get_model_filenames(model_dir):
     files = os.listdir(model_dir)
     meta_files = [s for s in files if s.endswith('.meta')]

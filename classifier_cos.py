@@ -68,6 +68,12 @@ def main(args):
                 emb_array[start_index:end_index, :] = sess.run(embeddings, feed_dict=feed_dict)
             test_emb_array = emb_array
 
+            # subtract mean
+            mean = np.mean(train_emb_array, axis=0)
+            # mean = np.mean(np.concatenate((train_emb_array, test_emb_array), 0), axis=0)
+            train_emb_array -= mean
+            test_emb_array -= mean
+
             print('Calculating cos distance')
             class_names = [cls.name.replace('_', ' ') for cls in train_dataset]
             dist_dict = np.ones((len(test_emb_array), len(train_emb_array)), np.float32) * np.inf
@@ -75,12 +81,25 @@ def main(args):
                 for j in range(len(train_emb_array)):
                     dist_dict[i, j] = facenet.distance(test_emb_array[i:i + 1], train_emb_array[j:j + 1], 1)[0]
 
-            predictions = dist_dict.argmin(axis=1)
-            for i in range(len(predictions)):
-                print('%4d  %s, distance: %.6f' % (
-                i, class_names[train_labels[predictions[i]]], dist_dict[i, predictions[i]]))
-            accuracy = np.mean(np.equal(train_labels[predictions[i]], test_labels))
-            print('Accuracy: %.6f' % accuracy)
+            predictions = np.zeros((len(test_emb_array), 5), np.int32)
+
+            top5_in_num = 0
+            with open('predictions.txt', 'w') as f:
+                for i in range(len(predictions)):
+                    predictions[i] = np.argsort(dist_dict[i])[:5]
+                    outstr = '%s' % class_names[test_labels[i]]
+                    for j in range(5):
+                        outstr += ' [%s, dist: %.5f]' % (
+                        class_names[train_labels[predictions[i, j]]], dist_dict[i, predictions[i, j]])
+                    print(outstr)
+                    f.write(outstr + '\r\n')
+                    if np.isin(test_labels[i], predictions[i]):
+                        top5_in_num += 1
+                accuracy = np.mean(np.equal(np.array(train_labels)[predictions[:, 0]], np.array(test_labels)))
+                print('Top1 accuracy: %.6f' % accuracy)
+                print('Top5 accuracy: %.6f' % (top5_in_num / len(predictions)))
+                f.write('Top1 accuracy: %.6f \r\n' % accuracy)
+                f.write('Top5 accuracy: %.6f \r\n' % (top5_in_num / len(predictions)))
 
 
 def parse_arguments(argv):
