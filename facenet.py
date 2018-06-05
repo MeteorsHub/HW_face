@@ -406,13 +406,17 @@ def load_model(model, input_map=None):
         print('Metagraph file: %s' % meta_file)
         print('Checkpoint file: %s' % ckpt_file)
 
+        tf.global_variables_initializer()
+
         saver = tf.train.import_meta_graph(os.path.join(model_exp, meta_file), input_map=input_map)
         saver.restore(tf.get_default_session(), os.path.join(model_exp, ckpt_file))
+    return saver
 
 
-def save_model(model_path):
-    saver = tf.train.Saver()
-    save_path = saver.save(tf.get_default_session(), os.path.join(model_path, 'model.ckpt'))
+def save_model(model_path, sess, saver):
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+    save_path = saver.save(sess, os.path.join(model_path, 'model.ckpt'))
     print('model saved in %s' % save_path)
 
 

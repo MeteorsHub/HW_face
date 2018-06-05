@@ -27,7 +27,7 @@ def main(args):
 
             # Load the model
             print('Loading pretrain feature extraction model')
-            facenet.load_model(args.src_model)
+            saver = facenet.load_model(args.src_model)
 
             # Get input and output tensors
             images_placeholder = tf.get_default_graph().get_tensor_by_name("input:0")
@@ -53,7 +53,7 @@ def main(args):
             n_batches_per_compare = int(math.ceil((n_images - 1) / args.batch_size))
 
             print('begin training')
-            for i in range(10):
+            for i in range(100):
                 # for i in range(n_images):
                 c_paths = copy.copy(paths)
                 del c_paths[i]
@@ -61,7 +61,7 @@ def main(args):
                 b_paths = [paths[i] for _ in range(args.batch_size)]
                 first_images = facenet.load_data(b_paths, False, False, args.image_size)
 
-                for j in range(100):
+                for j in range(10):
                     # for j in range(n_batches_per_compare):
                     start_index = i * args.batch_size
                     end_index = min((i + 1) * args.batch_size, n_images - 1)
@@ -74,7 +74,7 @@ def main(args):
                     _, loss_val = sess.run([train_op, loss], feed_dict=feed_dict)
                 print('loss on %d compare: %1.5f' % (i, loss_val))
 
-            facenet.save_model(args.dst_model)
+            facenet.save_model(args.dst_model, sess, saver)
 
 
 def parse_arguments(argv):
@@ -91,7 +91,7 @@ def parse_arguments(argv):
     parser.add_argument('--image_size', type=int,
                         help='Image size (height, width) in pixels.', default=160)
     parser.add_argument('--learning_rate', type=float,
-                        help='finetune learning rate', default=0.01)
+                        help='finetune learning rate', default=0.001)
     parser.add_argument('--seed', type=int,
                         help='Random seed.', default=666)
     parser.add_argument('--min_nrof_images_per_class', type=int,
