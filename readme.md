@@ -2,6 +2,8 @@
 
 This project is based on mtcnn and facenet.
 
+The results can be found in `predictions.txt`. Or you can follow the instructions below to perform test.
+
 ## Requirements
 
 Tensorflow>=1.7
@@ -59,30 +61,18 @@ This will use pretrained checkpoint in `saved_models/vgg_face2` trained on vgg_f
 
 Download from [https://cloud.tsinghua.edu.cn/d/991128b4d19e43bf99fc/](https://cloud.tsinghua.edu.cn/d/991128b4d19e43bf99fc/)
 
-> in progress
+We will use cosine distance to measure the similarity of test images with reference (train) images.
 
-* using svm
-
-train on our data using
 
 ```bash
-python classifier_svm.py \
-TRAIN \
-dataset/HW_1_Face/mtcnn_160/train/ \
-saved_models/vgg_face2/ \
-saved_models/HW_1_classifier_svm.pkl \
+python classifier_cos.py \
+dataset/HW_1_Face/mtcnn_160/train \
+dataset/HW_1_Face/mtcnn_160/test \
+saved_models/vgg_face2 \
 --batch_size=256 \
 --image_size=160
 ```
 
-and test on our data using
+## Other method we tried
 
-```bash
-python classifier_svm.py \
-CLASSIFY \
-dataset/HW_1_Face/mtcnn_160/test/ \
-saved_models/vgg_face2/ \
-saved_models/HW_1_classifier_svm.pkl \
---batch_size=256 \
---image_size=160
-```
+We use some other method but get worse result. They are `classifier_svm.py`, `finetune_cos.py` and `train_softmax.py`
