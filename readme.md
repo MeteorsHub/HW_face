@@ -136,5 +136,15 @@ and save it to `saved_models/vgg_face2`
     
     This will generate `predictions_cos.txt` and at about top1 acc of 0.98.
     
-    If you have any problems or something went wrong when training, feel free to contact me. Because this instruction and
-    the code is summarized in a hurry and may contain something inaccurate.
+    
+## Comments
+If you have any problems or something went wrong when training, feel free to contact me. Because this instruction and 
+the code is summarized in a hurry and may contain something inaccurate.
+
+> Instructions why we use test set for validation:
+>
+> There is no validation set in the provided data. And we only use validation for intermediate step result generation,
+> not for hyper-parameters modulation. We adjust h-paras according to the loss. 
+>
+> The accuracy achieve 100% on training set very soon because of the small size of training set. So the primary 
+> reference during training is the loss.
