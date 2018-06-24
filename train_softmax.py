@@ -70,16 +70,18 @@ def main(args):
 
     np.random.seed(seed=args.seed)
     random.seed(args.seed)
-    dataset = facenet.get_dataset(args.data_dir)
-    if args.filter_filename:
-        dataset = filter_dataset(dataset, os.path.expanduser(args.filter_filename),
-                                 args.filter_percentile, args.filter_min_nrof_images_per_class)
+    train_set = facenet.get_dataset(args.data_dir)
+    val_set = facenet.get_dataset(args.test_dir)
 
-    if args.validation_set_split_ratio > 0.0:
-        train_set, val_set = facenet.split_dataset(dataset, args.validation_set_split_ratio,
-                                                   args.min_nrof_val_images_per_class, 'SPLIT_IMAGES')
-    else:
-        train_set, val_set = dataset, []
+    # if args.filter_filename:
+    #     dataset = filter_dataset(dataset, os.path.expanduser(args.filter_filename),
+    #                              args.filter_percentile, args.filter_min_nrof_images_per_class)
+
+    # if args.validation_set_split_ratio > 0.0:
+    #     train_set, val_set = facenet.split_dataset(dataset, args.validation_set_split_ratio,
+    #                                                args.min_nrof_val_images_per_class, 'SPLIT_IMAGES')
+    # else:
+    #     train_set, val_set = dataset, []
 
     nrof_classes = len(train_set)
 
@@ -148,6 +150,7 @@ def main(args):
         prelogits, _ = network.inference(image_batch, args.keep_probability,
                                          phase_train=phase_train_placeholder, bottleneck_layer_size=args.embedding_size,
                                          weight_decay=args.weight_decay)
+        prelogits = slim.dropout(prelogits, args.keep_probability, is_training=phase_train_placeholder)
         logits = slim.fully_connected(prelogits, len(train_set), activation_fn=None,
                                       weights_initializer=slim.initializers.xavier_initializer(),
                                       weights_regularizer=slim.l2_regularizer(args.weight_decay),
@@ -183,11 +186,18 @@ def main(args):
         total_loss = tf.add_n([cross_entropy_mean] + regularization_losses, name='total_loss')
 
         # Build a Graph that trains the model with one batch of examples and updates the model parameters
+        # train_op = facenet.train(total_loss, global_step, args.optimizer,
+        #                          learning_rate, args.moving_average_decay, tf.global_variables(), args.log_histograms)
+        if args.is_finetune:
+            train_vars = tf.trainable_variables(scope='Logits')
+        else:
+            train_vars = tf.trainable_variables()
         train_op = facenet.train(total_loss, global_step, args.optimizer,
-                                 learning_rate, args.moving_average_decay, tf.global_variables(), args.log_histograms)
+                                 learning_rate, args.moving_average_decay, train_vars, args.log_histograms)
 
         # Create a saver
         saver = tf.train.Saver(tf.trainable_variables(), max_to_keep=3)
+        restore_saver = tf.train.Saver(tf.trainable_variables(scope='InceptionResnetV1'))
 
         # Build the summary operation based on the TF collection of Summaries.
         summary_op = tf.summary.merge_all()
@@ -204,8 +214,12 @@ def main(args):
         with sess.as_default():
 
             if pretrained_model:
-                print('Restoring pretrained model: %s' % pretrained_model)
-                saver.restore(sess, pretrained_model)
+                if args.load_without_fc:
+                    print('Restoring pretrained model without last fc layer: %s' % pretrained_model)
+                    restore_saver.restore(sess, pretrained_model)
+                else:
+                    print('Restoring pretrained model with last fc layer: %s' % pretrained_model)
+                    saver.restore(sess, pretrained_model)
 
             # Training and validation loop
             print('Running training')
@@ -259,7 +273,8 @@ def main(args):
                 stat['time_validate'][epoch - 1] = time.time() - t
 
                 # Save variables and the metagraph if it doesn't exist already
-                save_variables_and_metagraph(sess, saver, summary_writer, model_dir, subdir, epoch)
+                if epoch % args.save_every_n_epochs == 0:
+                    save_variables_and_metagraph(sess, saver, summary_writer, model_dir, subdir, epoch)
 
                 # Evaluate on LFW
                 t = time.time()
@@ -274,7 +289,7 @@ def main(args):
 
                 print('Saving statistics')
                 with h5py.File(stat_file_name, 'w') as f:
-                    for key, value in stat.iteritems():
+                    for key, value in stat.items():
                         f.create_dataset(key, data=value)
 
     return model_dir
@@ -392,8 +407,8 @@ def validate(args, sess, epoch, image_list, label_list, enqueue_op, image_paths_
              use_fixed_image_standardization):
     print('Running forward pass on validation set')
 
-    nrof_batches = len(label_list) // args.lfw_batch_size
-    nrof_images = nrof_batches * args.lfw_batch_size
+    nrof_batches = len(label_list) // args.batch_size
+    nrof_images = nrof_batches * args.batch_size
 
     # Enqueue one epoch of image paths and labels
     labels_array = np.expand_dims(np.array(label_list[:nrof_images]), 1)
@@ -410,7 +425,7 @@ def validate(args, sess, epoch, image_list, label_list, enqueue_op, image_paths_
     # Training loop
     start_time = time.time()
     for i in range(nrof_batches):
-        feed_dict = {phase_train_placeholder: False, batch_size_placeholder: args.lfw_batch_size}
+        feed_dict = {phase_train_placeholder: False, batch_size_placeholder: args.batch_size}
         loss_, cross_entropy_mean_, accuracy_ = sess.run([loss, cross_entropy_mean, accuracy], feed_dict=feed_dict)
         loss_array[i], xent_array[i], accuracy_array[i] = (loss_, cross_entropy_mean_, accuracy_)
         if i % 10 == 9:
@@ -532,6 +547,9 @@ def parse_arguments(argv):
     parser.add_argument('--data_dir', type=str,
                         help='Path to the data directory containing aligned face patches.',
                         default='~/datasets/casia/casia_maxpy_mtcnnalign_182_160')
+    parser.add_argument('--test_dir', type=str,
+                        help='Path to the test data directory containing aligned face patches.',
+                        default='~/datasets/casia/casia_maxpy_mtcnnalign_182_160')
     parser.add_argument('--model_def', type=str,
                         help='Model definition. Points to a module containing the definition of the inference graph.',
                         default='models.inception_resnet_v1')
@@ -601,6 +619,12 @@ def parse_arguments(argv):
                         help='The ratio of the total dataset to use for validation', default=0.0)
     parser.add_argument('--min_nrof_val_images_per_class', type=float,
                         help='Classes with fewer images will be removed from the validation set', default=0)
+    parser.add_argument('--save_every_n_epochs', type=int,
+                        help='save the model every n epochs', default=10)
+    parser.add_argument('--is_finetune',
+                        help='If true, only train last fc layer', action='store_true')
+    parser.add_argument('--load_without_fc',
+                        help='If true, load pretrained model without last fc layer', action='store_true')
 
     # Parameters for validation on LFW
     parser.add_argument('--lfw_pairs', type=str,

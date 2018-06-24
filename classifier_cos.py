@@ -84,7 +84,7 @@ def main(args):
             predictions = np.zeros((len(test_emb_array), 5), np.int32)
 
             top5_in_num = 0
-            with open('predictions.txt', 'w') as f:
+            with open('predictions_cos.txt', 'w') as f:
                 for i in range(len(predictions)):
                     predictions[i] = np.argsort(dist_dict[i])[:5]
                     outstr = '%s' % class_names[test_labels[i]]
